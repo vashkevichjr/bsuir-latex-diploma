@@ -8,6 +8,7 @@
 \defaultfontfeatures{Ligatures=TeX}
 \setmainfont{Times New Roman}
 \usepackage[english, russian]{babel}
+\addto\captionsrussian{\renewcommand{\contentsname}{Содержание}}
 
 \usepackage[top=20mm, bottom=20mm, left=30mm, right=15mm]{geometry} % СТП 01-2024
 
@@ -36,6 +37,8 @@
 
 \setlength{\cftbeforetoctitleskip}{-1em}
 \setlength{\cftaftertoctitleskip}{1em}
+\renewcommand{\cfttoctitlefont}{\hfill\normalfont\normalsize\bfseries}
+\renewcommand{\cftaftertoctitle}{\hfill}
 
 \makeatletter
 % \renewcommand{\numberline}[1]{%
@@ -217,7 +220,19 @@
     size=normalsize,%
     aboveskip=0em,%
     belowskip=0em,%
-    format=hang
+    format=hang,%
+    margin=0pt
+}
+
+\captionsetup[longtable]{%
+    labelformat=stbtable,%
+    justification=raggedright,%
+    labelsep=stb,%
+    size=normalsize,%
+    aboveskip=0em,%
+    belowskip=0em,%
+    format=hang,%
+    margin=0pt
 }
 
 % Математика и оформление формул
@@ -276,6 +291,7 @@
 \usepackage{longtable}
 \usepackage{pdfpages}
 \usepackage{textcomp, gensymb}
+\usepackage{ragged2e}
 \usepackage{tabularx}
 
 % Стиль библиографии
@@ -308,8 +324,10 @@
 
 % Поддержка ссылок с нижним подчеркиванием в BibTeX
 
-\usepackage[hyphens]{url}
+\PassOptionsToPackage{hyphens}{url}
+\usepackage{xurl}
 \urlstyle{same}
+\setlength{\emergencystretch}{3em}
 
 % Frenchspacing и перенос слов с дефисом
 
@@ -332,5 +350,13 @@
 
 % Вертикальное и горизонтальное выравнивание в таблицах
 
-\renewcommand\tabularxcolumn[1]{m{#1}}
-\newcolumntype{Y}{>{\centering\arraybackslash}X}
+\renewcommand\tabularxcolumn[1]{>{\RaggedRight\arraybackslash\hspace{0pt}}m{#1}}
+\newcolumntype{L}{>{\RaggedRight\arraybackslash\hspace{0pt}}X}
+\newcolumntype{Y}{>{\Centering\arraybackslash\hspace{0pt}}X}
+\newcolumntype{P}[1]{>{\RaggedRight\arraybackslash\hspace{0pt}}p{#1}}
+\newcolumntype{M}[1]{>{\RaggedRight\arraybackslash\hspace{0pt}}m{#1}}
+\setlength{\extrarowheight}{2pt}
+\setlength{\LTleft}{0pt}
+\setlength{\LTright}{\fill}
+\BeforeBeginEnvironment{tabularx}{\noindent}
+\BeforeBeginEnvironment{longtable}{\noindent}

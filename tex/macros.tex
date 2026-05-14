@@ -1,0 +1,19 @@
+\DeclareRobustCommand{\eng}[1]{\foreignlanguage{english}{\textit{#1}}}
+
+\newcommand{\placeholderimage}[2]{%
+    \fbox{%
+        \begin{minipage}[c][#2][c]{0.92\textwidth}
+            \centering
+            \textbf{Изображение будет добавлено позже}\\[0.5em]
+            \texttt{#1}
+        \end{minipage}%
+    }%
+}
+
+\newcommand{\diplomaimage}[3][0.92\textwidth]{%
+    \IfFileExists{#2}{%
+        \includegraphics[width=#1]{#2}%
+    }{%
+        \placeholderimage{#2}{#3}%
+    }%
+}

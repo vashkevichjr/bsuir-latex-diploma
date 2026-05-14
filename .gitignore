@@ -30,9 +30,11 @@
 *.toc
 *.vrb
 *.xdy
+*.xdv
 *.tdo
 *.pdf
 *.gz*
 *~
+.DS_Store
 !images/*
 !styles/*

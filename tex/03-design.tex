@@ -21,6 +21,30 @@
 
 Такое построение системы соответствует требованиям предметной области. Клиенту и \eng{SEO}-специалисту необходим быстрый доступ к аналитическим экранам и табличным формам, а серверной части -- четко структурированная прикладная логика и надежная работа с транзакционными данными. Выбор \eng{Go} для серверной части обусловлен высокой производительностью, явной моделью обработки запросов и компактностью исполняемой среды. Выбор \eng{Next.js} и \eng{React} для клиентской части обусловлен компонентной архитектурой, удобством построения сложных интерфейсов и поддержкой современных сценариев \eng{SPA}/\eng{SSR}.
 
+На уровне практической реализации выбранный стек предполагает явное описание маршрутов серверной части и их связывание с обработчиками прикладной логики. Пример фрагмента кода инициализации маршрутов на \eng{Go} приведен ниже. В нем отражена группировка маршрутов аутентификации, проектов и аналитики, что соответствует ранее описанной структуре \eng{API}.
+
+\begin{center}
+\begin{minipage}{0.92\textwidth}
+\captionsetup{type=figure}
+\captionof{figure}{Фрагмент кода инициализации маршрутов серверной части на \eng{Go}}
+\label{fig:go-router-code}
+\begin{Verbatim}[frame=single,fontsize=\fontsize{10pt}{12pt}\selectfont]
+func RegisterRoutes(r chi.Router, h *Handler) {
+    r.Route("/auth", func(r chi.Router) {
+        r.Post("/login", h.Login)
+        r.Get("/me", h.Me)
+    })
+
+    r.Route("/projects", func(r chi.Router) {
+        r.Get("/", h.ListProjects)
+        r.Get("/{id}/dashboard", h.ProjectDashboard)
+        r.Post("/{id}/analytics/recalculate", h.RecalculateAnalytics)
+    })
+}
+\end{Verbatim}
+\end{minipage}
+\end{center}
+
 До окончательного выбора стека был выполнен сравнительный анализ языков программирования для серверной части. Его результаты приведены в таблице~\ref{tab:backend-languages}.
 
 \begin{table}[H]
@@ -333,6 +357,39 @@
     \label{fig:analytics-calculation-sequence}
 \end{figure}
 
+Практическая реализация аналитического слоя предполагает явный расчет агрегированных показателей по данным о визитах, заказах и возвратах. Фрагмент кода серверной функции расчета метрик приведен ниже. В нем показана общая логика вычисления конверсии, выручки и среднего чека, которая затем используется при формировании \eng{dashboard} и отчетов.
+
+\begin{center}
+\begin{minipage}{0.92\textwidth}
+\captionsetup{type=figure}
+\captionof{figure}{Фрагмент кода расчета аналитических показателей на \eng{Go}}
+\label{fig:go-analytics-code}
+\begin{Verbatim}[frame=single,fontsize=\fontsize{10pt}{12pt}\selectfont]
+func BuildMetrics(visits, orders int, revenue, refunds float64) Metrics {
+    netRevenue := revenue - refunds
+
+    conversion := 0.0
+    if visits > 0 {
+        conversion = float64(orders) / float64(visits) * 100
+    }
+
+    averageOrderValue := 0.0
+    if orders > 0 {
+        averageOrderValue = netRevenue / float64(orders)
+    }
+
+    return Metrics{
+        VisitsCount:       visits,
+        OrdersCount:       orders,
+        Revenue:           netRevenue,
+        ConversionRate:    conversion,
+        AverageOrderValue: averageOrderValue,
+    }
+}
+\end{Verbatim}
+\end{minipage}
+\end{center}
+
 Внутри прикладной логики можно выделить несколько устойчивых блоков. Блок управления заявками отвечает за регистрацию обращения, смену статусов и связь с проектом. Блок работы с данными проекта отвечает за ввод и проверку исходных сведений. Аналитический блок выполняет расчет \eng{KPI}, воронки продаж, эффективности источников и формирование итоговых метрик. Блок отчетности управляет публикацией отчета и фиксацией рекомендаций. Административный блок отвечает за пользователей, справочники, резервное копирование и демонстрационные данные.
 
 Завершающий бизнес-процесс связан с подготовкой и публикацией отчета. На этом этапе \eng{SEO}-специалист анализирует рассчитанные показатели, формирует рекомендации по улучшению источников трафика и этапов воронки, после чего публикует отчет. Клиент получает доступ к результату и при необходимости может отправить отчет на доработку. Диаграмма деятельности процесса публикации отчета представлена на рисунке~\ref{fig:report-publication-activity}.
@@ -348,9 +405,125 @@
 
 \subsection{Спецификация к разработанному API и механизмы обеспечения информационной безопасности}
 
-Взаимодействие клиентской и серверной частей реализуется через \eng{REST API}, использующий формат \eng{JSON}. Сервер предоставляет точки доступа для авторизации, управления пользователями, заявками, проектами, табличными данными, аналитическими метриками, рекомендациями, отчетами, резервным копированием и журналом действий. Для документирования интерфейса используется \eng{OpenAPI}-описание, позволяющее формализовать структуру запросов и ответов без привязки к ручному описанию каждого маршрута.
+Взаимодействие клиентской и серверной частей реализуется через \eng{REST API}, использующий формат \eng{JSON}. Для документирования интерфейса используется \eng{OpenAPI}-описание, позволяющее формализовать состав маршрутов, параметры запросов и структуру ответов. По аналогии с исходной спецификацией в формате \eng{Swagger/OpenAPI} описание \eng{API} включает блоки \eng{openapi}, \eng{info}, \eng{servers}, \eng{paths} и \eng{components/schemas}. В блоке \eng{info} фиксируются наименование сервиса и версия \eng{API}, в блоке \eng{servers} указывается базовый адрес развертывания, в блоке \eng{paths} перечисляются маршруты, а в блоке \eng{components/schemas} описываются структуры сущностей \eng{User}, \eng{Application}, \eng{Project}, \eng{TrafficSource}, \eng{Event}, \eng{Order}, \eng{Refund}, \eng{Report}, \eng{Recommendation}, \eng{Task}, \eng{Backup} и связанных объектов запросов и ответов. Спецификация \eng{API} должна повторять прикладную логику системы и охватывать все основные сущности предметной области: пользователей, заявки, проекты, источники трафика, события, заказы, возвраты, аналитику, рекомендации, отчеты, задачи, резервные копии и журнал действий.
 
-Спецификация \eng{API} строится вокруг сущностей предметной области. Для заявок поддерживаются операции создания, просмотра, изменения статуса и назначения специалиста. Для проектов доступны операции получения карточки проекта, \eng{dashboard}, источников трафика и аналитических данных. Для ввода информации предусмотрены отдельные маршруты массовой загрузки событий, заказов и возвратов. Для отчетов реализуются операции подготовки, публикации, принятия и отправки на доработку. Такой набор маршрутов соответствует жизненному циклу проекта и позволяет клиентской части работать с системой без прямого доступа к базе данных.
+Группа аутентификации включает следующие маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/auth/login};
+    \item \url{/auth/refresh};
+    \item \url{/auth/logout};
+    \item \url{/auth/me}.
+\end{itemize}
+
+Эти точки доступа обеспечивают вход пользователя, обновление \eng{access token}, завершение сессии и получение текущего профиля. Группа управления пользователями включает маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/users};
+    \item \url{/users/\{id\}};
+    \item \url{/users/\{id\}/role};
+    \item \url{/users/\{id\}/status}.
+\end{itemize}
+
+Отдельно выделяются маршруты выбора и просмотра профиля \eng{SEO}-специалиста:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/seo-specialists};
+    \item \url{/seo-specialists/\{id\}}.
+\end{itemize}
+
+Для работы с заявками и брифом проекта используются маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/applications};
+    \item \url{/applications/\{id\}};
+    \item \url{/applications/\{id\}/status};
+    \item \url{/applications/\{id\}/assign-specialist};
+    \item \url{/applications/\{id\}/accept};
+    \item \url{/applications/\{id\}/reject};
+    \item \url{/applications/\{id\}/request-details};
+    \item \url{/applications/\{id\}/business-profile}.
+\end{itemize}
+
+Эти точки доступа позволяют зарегистрировать обращение клиента, назначить исполнителя, изменить статус обработки и сохранить сведения о бизнесе.
+
+Группа проектных маршрутов включает:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/projects};
+    \item \url{/projects/\{id\}};
+    \item \url{/projects/\{id\}/status};
+    \item \url{/projects/\{id\}/dashboard}.
+\end{itemize}
+
+Для работы с источниками трафика используются маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/projects/\{id\}/traffic-sources};
+    \item \url{/traffic-sources/\{id\}}.
+\end{itemize}
+
+Для обработки событий, переходов, заказов и возвратов применяются следующие маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/projects/\{id\}/events};
+    \item \url{/projects/\{id\}/events/bulk};
+    \item \url{/events/\{id\}};
+    \item \url{/projects/\{id\}/visits};
+    \item \url{/projects/\{id\}/visits/bulk};
+    \item \url{/projects/\{id\}/orders};
+    \item \url{/projects/\{id\}/orders/bulk};
+    \item \url{/orders/\{id\}};
+    \item \url{/projects/\{id\}/refunds};
+    \item \url{/projects/\{id\}/refunds/bulk};
+    \item \url{/refunds/\{id\}}.
+\end{itemize}
+
+Для импорта и проверки данных предусмотрены маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/projects/\{id\}/imports/csv};
+    \item \url{/projects/\{id\}/imports/json};
+    \item \url{/projects/\{id\}/validate-data};
+    \item \url{/projects/\{id\}/validation-results}.
+\end{itemize}
+
+Генерация демонстрационного массива реализуется через маршрут \url{/projects/\{id\}/generate-demo-data}. Аналитический блок использует маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/projects/\{id\}/analytics/recalculate};
+    \item \url{/projects/\{id\}/analytics/metrics};
+    \item \url{/projects/\{id\}/analytics/sources};
+    \item \url{/projects/\{id\}/analytics/funnel};
+    \item \url{/projects/\{id\}/analytics/revenue};
+    \item \url{/projects/\{id\}/analytics/conversion}.
+\end{itemize}
+
+За счет этого клиентская часть получает доступ к пересчету \eng{KPI}, анализу источников трафика, воронке продаж и динамике выручки и конверсии.
+
+Отдельная группа маршрутов используется для работы с рекомендациями и отчетами. Для рекомендаций предусмотрены маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/projects/\{id\}/recommendations};
+    \item \url{/recommendations/\{id\}}.
+\end{itemize}
+
+Для отчетов применяются маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/reports};
+    \item \url{/reports/\{id\}};
+    \item \url{/reports/\{id\}/publish};
+    \item \url{/reports/\{id\}/accept};
+    \item \url{/reports/\{id\}/request-revision};
+    \item \url{/reports/\{id\}/export}.
+\end{itemize}
+
+Для управления аналитическими задачами выделяются маршруты:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/tasks};
+    \item \url{/tasks/\{id\}};
+    \item \url{/tasks/\{id\}/status}.
+\end{itemize}
+
+Административный контур дополняется маршрутами:
+\begin{itemize}[leftmargin=1.25cm]
+    \item \url{/backups};
+    \item \url{/backups/\{id\}/download};
+    \item \url{/backups/\{id\}/restore};
+    \item \url{/audit-logs}.
+\end{itemize}
+
+Таким образом, спецификация описывает не только перечень адресов, но и \eng{operationId}, параметры пути, \eng{requestBody}, коды ответов и используемые схемы данных, как это делается в исходной \eng{OpenAPI}-документации. Такой состав \eng{API} полностью соответствует жизненному циклу проекта: от подачи заявки и ввода данных до публикации отчета и сопровождения системы.
 
 С точки зрения информационной безопасности система должна обеспечивать аутентификацию пользователей, защиту паролей, разграничение прав и журналирование значимых действий. Аутентификация выполняется по \eng{email} и паролю, а доступ к защищенным маршрутам предоставляется по \eng{JWT}-токену. Пароли сохраняются только в виде криптографического хеша. Административные маршруты должны быть недоступны клиенту и \eng{SEO}-специалисту без соответствующей роли. Для внешнего доступа используется \eng{HTTPS}, завершаемый на уровне \eng{Caddy}.
 
